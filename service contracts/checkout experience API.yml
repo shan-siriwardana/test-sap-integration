@@ -1,0 +1,234 @@
+openapi: 3.0.3
+info:
+  title: Checkout Experience API
+  version: 1.0.0
+  description: >
+    Experience API to start checkout (price + soft hold) and confirm checkout (payment + order).
+
+servers:
+  - url: https://api.example.com
+
+paths:
+  /checkout/start:
+    post:
+      summary: Start checkout for a basket
+      description: >
+        Re-price basket, create soft inventory holds, and return a short-lived checkout session.
+      operationId: startCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutStartRequest"
+            examples:
+              sample:
+                value:
+                  basketId: b_001
+                  customerId: cust_12345
+      responses:
+        "200":
+          description: Checkout session created
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Set to no-store to avoid caching of sensitive amounts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutStartResponse"
+              examples:
+                ok:
+                  value:
+                    checkoutSessionId: cs_8fb7e4
+                    expiresAt: 2025-09-09T12:45:00Z
+                    totals:
+                      grandTotal: 62.97
+                      currency: NZD
+                    holds:
+                      - sku: APL-001
+                        quantity: 1
+                      - sku: MLK-2L
+                        quantity: 2
+        "401":
+          description: Unauthorized
+        "422":
+          description: Basket invalid / out of stock / price changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    code: BASKET_INVALID
+                    message: Milk reduced to 1 due to stock limits.
+        "500":
+          description: Server error
+
+  /checkout/confirm:
+    post:
+      summary: Confirm checkout (payment + order)
+      description: >
+        Validates the checkout session, authorizes payment using a PSP token,
+        creates a local order, and returns the order id.
+      operationId: confirmCheckout
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          description: Prevents duplicate payment/order creation on retries.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutConfirmRequest"
+            examples:
+              sample:
+                value:
+                  checkoutSessionId: cs_8fb7e4
+                  paymentMethodId: pm_abc123
+      responses:
+        "201":
+          description: Order created
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL of the created order resource.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutConfirmResponse"
+              examples:
+                ok:
+                  value:
+                    orderId: ORD-12345
+                    status: CONFIRMED
+        "401":
+          description: Unauthorized
+        "402":
+          description: Payment declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                declined:
+                  value:
+                    code: PAYMENT_DECLINED
+                    message: Card was declined.
+        "409":
+          description: Idempotency conflict or already confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                conflict:
+                  value:
+                    code: IDEMPOTENCY_CONFLICT
+                    message: Key already used with different payload.
+                already:
+                  value:
+                    code: ALREADY_CONFIRMED
+                    message: Order already created for this session.
+        "422":
+          description: Session expired/invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                expired:
+                  value:
+                    code: SESSION_EXPIRED
+                    message: Checkout session expired. Start again.
+        "500":
+          description: Server error
+
+components:
+  schemas:
+    CheckoutStartRequest:
+      type: object
+      required: [basketId, customerId]
+      properties:
+        basketId:
+          type: string
+          example: b_001
+        customerId:
+          type: string
+          example: cust_12345
+
+    CheckoutStartResponse:
+      type: object
+      required: [checkoutSessionId, expiresAt, totals, holds]
+      properties:
+        checkoutSessionId:
+          type: string
+          example: cs_8fb7e4
+        expiresAt:
+          type: string
+          format: date-time
+          example: 2025-09-09T12:45:00Z
+        totals:
+          type: object
+          required: [grandTotal, currency]
+          properties:
+            grandTotal:
+              type: number
+              format: float
+              example: 62.97
+            currency:
+              type: string
+              example: NZD
+        holds:
+          type: array
+          items:
+            type: object
+            required: [sku, quantity]
+            properties:
+              sku:
+                type: string
+                example: APL-001
+              quantity:
+                type: integer
+                example: 1
+
+    CheckoutConfirmRequest:
+      type: object
+      required: [checkoutSessionId, paymentMethodId]
+      properties:
+        checkoutSessionId:
+          type: string
+          example: cs_8fb7e4
+        paymentMethodId:
+          type: string
+          example: pm_abc123
+
+    CheckoutConfirmResponse:
+      type: object
+      required: [orderId, status]
+      properties:
+        orderId:
+          type: string
+          example: ORD-12345
+        status:
+          type: string
+          enum: [CONFIRMED]
+          example: CONFIRMED
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: SESSION_EXPIRED
+        message:
+          type: string
+          example: Checkout session expired. Start again.

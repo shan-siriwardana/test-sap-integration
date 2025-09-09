@@ -34,3 +34,5 @@ Upon use clicking ‘PAY’, FE will invoke checkout experience API’s ‘compl
 <p align="center">
   <img src="./images/checkout-step3.png" alt="Basket screen" width="300" height="400"/>
 </p>
+
+![alt text](image.png)
