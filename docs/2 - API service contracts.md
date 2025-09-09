@@ -1,8 +1,8 @@
 # API Contracts Overview
-
+ 
 Below is a summary of service contracts of APIs.  
 
-Detailed YAML files describing the service contracts along with sample requests/responses can be found under the `API service contracts/` folder.
+Detailed YAML files describing the service contracts along with sample requests/responses can be found in the [API Service Contracts](../service-contracts/) folder.
 
 | API          | Operation          | URI                             |
 |--------------|--------------------|---------------------------------|
