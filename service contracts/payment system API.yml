@@ -1,0 +1,187 @@
+openapi: 3.0.3
+info:
+  title: Payment System API
+  version: 1.0.1
+
+servers:
+  - url: https://internal.api.example.com
+
+paths:
+  /payments/confirm:
+    post:
+      summary: Authorize a payment for a checkout session
+      description: Uses a PSP token to authorize the amount tied to the checkout session.
+      operationId: confirmPayment
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+          description: Prevents duplicate charges on retries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentConfirmRequest'
+            examples:
+              sample:
+                value:
+                  checkoutSessionId: cs_8fb7e4
+                  paymentMethodId: pm_abc123
+      responses:
+        '200':
+          description: Authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResult'
+              examples:
+                ok:
+                  value:
+                    status: AUTHORIZED
+                    authId: auth_5f2c9d
+        '402':
+          description: Payment declined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                declined:
+                  value:
+                    code: PAYMENT_DECLINED
+                    message: Card was declined.
+        '409':
+          description: Idempotency conflict (same key reused with different payload)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                conflict:
+                  value:
+                    code: IDEMPOTENCY_CONFLICT
+                    message: Key already used with different payload.
+        '422':
+          description: Invalid or expired checkout session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                expired:
+                  value:
+                    code: SESSION_EXPIRED
+                    message: Checkout session expired. Start again.
+        '500':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments/{authId}/capture:
+    post:
+      summary: Capture a previously authorized payment
+      description: Use when goods ship. Captures up to the authorized amount.
+      operationId: capturePayment
+      parameters:
+        - in: path
+          name: authId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaptureRequest'
+            examples:
+              full:
+                value: {}
+              partial:
+                value:
+                  amount: 120.0
+      responses:
+        '200':
+          description: Captured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureResult'
+              examples:
+                ok:
+                  value:
+                    status: CAPTURED
+                    captureId: cap_77a1f3
+        '404':
+          description: Authorization not found
+        '409':
+          description: Already captured or voided
+        '500':
+          description: Error
+
+components:
+  schemas:
+    PaymentConfirmRequest:
+      type: object
+      required:
+        - checkoutSessionId
+        - paymentMethodId
+      properties:
+        checkoutSessionId:
+          type: string
+          example: cs_8fb7e4
+        paymentMethodId:
+          type: string
+          example: pm_abc123
+
+    PaymentResult:
+      type: object
+      required:
+        - status
+        - authId
+      properties:
+        status:
+          type: string
+          enum: [AUTHORIZED]
+        authId:
+          type: string
+          example: auth_5f2c9d
+
+    CaptureRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: float
+          description: Optional partial capture amount. Defaults to full.
+
+    CaptureResult:
+      type: object
+      required:
+        - status
+        - captureId
+      properties:
+        status:
+          type: string
+          enum: [CAPTURED]
+        captureId:
+          type: string
+          example: cap_77a1f3
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: SESSION_EXPIRED
+        message:
+          type: string
+          example: Checkout session expired. Start again.

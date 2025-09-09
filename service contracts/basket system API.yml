@@ -1,0 +1,188 @@
+openapi: 3.0.3
+info:
+  title: Basket System API
+  version: 1.0.2
+  description: System API for basket related operations.
+
+servers:
+  - url: https://internal.api.example.com
+
+paths:
+  /baskets/{basketId}/sessions:
+    post:
+      summary: Create checkout session
+      description: Creates a short-lived checkout session (reprice + soft holds).
+      operationId: createCheckoutSession
+      parameters:
+        - in: path
+          name: basketId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSession"
+              examples:
+                sample:
+                  value:
+                    checkoutSessionId: "cs_8fb7e4"
+                    expiresAt: "2025-09-09T12:45:00Z"
+                    totals:
+                      grandTotal: 62.97
+                      currency: "NZD"
+                    holds:
+                      - { sku: "APL-001", quantity: 1 }
+                      - { sku: "MLK-2L",  quantity: 2 }
+        "401":
+          description: Unauthorized
+        "422":
+          description: Basket invalid
+        "500":
+          description: Error
+
+  /checkout-sessions/{checkoutSessionId}:
+    get:
+      summary: Get/validate a checkout session
+      description: Returns session status, expiry, and totals for the session.
+      operationId: getCheckoutSession
+      parameters:
+        - in: path
+          name: checkoutSessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSessionInfo"
+              examples:
+                active:
+                  value:
+                    checkoutSessionId: "cs_8fb7e4"
+                    status: "ACTIVE"
+                    expiresAt: "2025-09-09T12:45:00Z"
+                    totals:
+                      grandTotal: 62.97
+                      currency: "NZD"
+                expired:
+                  value:
+                    checkoutSessionId: "cs_8fb7e4"
+                    status: "EXPIRED"
+                    expiresAt: "2025-09-09T12:30:00Z"
+                    totals:
+                      grandTotal: 62.97
+                      currency: "NZD"
+        "404":
+          description: Session not found
+        "500":
+          description: Error
+
+  /baskets:
+    post:
+      summary: Create a new basket (optionally with initial items)
+      description: >
+        Creates an empty basket or a basket pre-populated by the caller.
+        (Request/response body deliberately omitted for this assignment.)
+      operationId: createBasket
+      responses:
+        "201":
+          description: Basket created (returns a basket identifier)
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Error
+
+  /baskets/{basketId}/items:
+    post:
+      summary: Add items to an existing basket
+      description: >
+        Adds one or more items to the basket.
+        (Request/response body deliberately omitted for this assignment.)
+      operationId: addItemsToBasket
+      parameters:
+        - in: path
+          name: basketId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Items added
+        "401":
+          description: Unauthorized
+        "404":
+          description: Basket not found
+        "409":
+          description: Conflict (e.g., invalid state)
+        "500":
+          description: Error
+
+components:
+  schemas:
+    CheckoutSession:
+      type: object
+      required: [checkoutSessionId, expiresAt, totals, holds]
+      properties:
+        checkoutSessionId:
+          type: string
+          example: "cs_8fb7e4"
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2025-09-09T12:45:00Z"
+        totals:
+          type: object
+          required: [grandTotal, currency]
+          properties:
+            grandTotal:
+              type: number
+              format: float
+              example: 62.97
+            currency:
+              type: string
+              example: "NZD"
+        holds:
+          type: array
+          items:
+            type: object
+            required: [sku, quantity]
+            properties:
+              sku:
+                type: string
+                example: "APL-001"
+              quantity:
+                type: integer
+                example: 1
+
+    CheckoutSessionInfo:
+      type: object
+      required: [checkoutSessionId, status, expiresAt, totals]
+      properties:
+        checkoutSessionId:
+          type: string
+          example: "cs_8fb7e4"
+        status:
+          type: string
+          enum: [ACTIVE, EXPIRED, CONSUMED]
+          example: "ACTIVE"
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2025-09-09T12:45:00Z"
+        totals:
+          type: object
+          required: [grandTotal, currency]
+          properties:
+            grandTotal:
+              type: number
+              format: float
+              example: 62.97
+            currency:
+              type: string
+              example: "NZD"

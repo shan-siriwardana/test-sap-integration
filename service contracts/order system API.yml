@@ -1,0 +1,108 @@
+openapi: 3.0.3
+info:
+  title: Order System API
+  version: 1.0.0
+  description: Create orders from priced/held checkout sessions.
+
+servers:
+  - url: https://internal.api.example.com
+
+paths:
+  /orders:
+    post:
+      summary: Create an order from a basket checkout session
+      description: >
+        Validates the checkout session, builds a server-side basket snapshot,
+        persists the order, and emits OrderPlaced to Kafka.
+      operationId: createOrder
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string }
+          description: Prevents duplicate order creation on retries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            examples:
+              sample:
+                value:
+                  customerId: "cust_12345"
+                  checkoutSessionId: "cs_8fb7e4"
+                  payment:
+                    authId: "auth_5f2c9d"
+                    amount: 62.97
+                    currency: "NZD"
+      responses:
+        '201':
+          description: Order created
+          headers:
+            Location:
+              schema: { type: string }
+              description: URL of the created order resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrderResponse'
+              examples:
+                ok:
+                  value:
+                    orderId: "ORD-12345"
+                    status: "CONFIRMED"
+        '400':
+          description: Invalid payload
+        '409':
+          description: Idempotency conflict (same key, different payload)
+        '500':
+          description: Error
+
+components:
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required: [customerId, checkoutSessionId, payment]
+      properties:
+        customerId:
+          type: string
+          example: "cust_12345"
+        checkoutSessionId:
+          type: string
+          example: "cs_8fb7e4"
+        payment:
+          type: object
+          required: [authId, amount, currency]
+          properties:
+            authId:
+              type: string
+              example: "auth_5f2c9d"
+            amount:
+              type: number
+              format: float
+              example: 62.97
+            currency:
+              type: string
+              example: "NZD"
+
+    CreateOrderResponse:
+      type: object
+      required: [orderId, status]
+      properties:
+        orderId:
+          type: string
+          example: "ORD-12345"
+        status:
+          type: string
+          enum: [CONFIRMED]
+          example: "CONFIRMED"
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
