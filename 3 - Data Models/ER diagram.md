@@ -9,5 +9,5 @@ When it comes to the checkout process, the following microservices are involved:
 All these microservices use data sources and ER diagram below represents the key database tables (entities) used in the data model and the relationships between them.
 
 <p align="center">
-  <img src="../images/erd.png" alt="erd"/>
+  <img src="../images/ERD.png" alt="erd"/>
 </p>
