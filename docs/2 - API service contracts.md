@@ -1,12 +1,16 @@
-# API Service Contracts Summary
-
-This document provides an overview of the API contracts delivered as part of the checkout capability.  
-For full details, see the respective OpenAPI specifications under `/docs`.
-
 # API Contracts Overview
 
-| API          | Operation         | URI                         | Sample Request                                                                                 | Sample Response                                                                                |
-|--------------|------------------|-----------------------------|-------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
-| Basket API   | Start Checkout   | `POST /baskets/{id}/sessions` | ```json<br>{ "basketId": "b_001" }<br>```                                                       | ```json<br>{ "checkoutSessionId": "cs_123", "expiresAt": "2025-09-09T12:45:00Z", "totals": { "grandTotal": 62.97, "currency": "NZD" } }<br>``` |
-| Payment API  | Authorize Payment| `POST /payments/confirm`    | ```json<br>{ "checkoutSessionId": "cs_123", "paymentMethodId": "pm_abc" }<br>```                | ```json<br>{ "status": "AUTHORIZED" }<br>```                                                   |
-| Checkout API | Confirm Checkout | `POST /checkout/confirm`    | ```json<br>{ "checkoutSessionId": "cs_123", "paymentMethodId": "pm_abc" }<br>```                | ```json<br>{ "orderId": "ORD-123", "status": "CONFIRMED" }<br>```                              |
+Below is a summary of service contracts of APIs.  
+
+Detailed YAML files describing the service contracts along with sample requests/responses can be found under the `API service contracts/` folder.
+
+| API          | Operation          | URI                             |
+|--------------|--------------------|---------------------------------|
+| Basket API   | Create Basket      | `POST /baskets`                 |
+| Basket API   | Add Items          | `POST /baskets/{basketId}/items`|
+| Basket API   | Start Checkout     | `POST /baskets/{basketId}/sessions` |
+| Basket API   | Get Checkout Session | `GET /checkout-sessions/{id}`  |
+| Payment API  | Authorize Payment  | `POST /payments/confirm`        |
+| Payment API  | Capture Payment    | `POST /payments/{authId}/capture` |
+| Order API    | Create Order       | `POST /orders`                  |
+| Checkout API | Confirm Checkout   | `POST /checkout/confirm`        |
